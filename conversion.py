@@ -24,17 +24,17 @@ def get_submission_date():
     return datetime.datetime.utcnow().isoformat() + 'Z'
 
 # Check if the file has already been processed
-def is_file_processed(file_name):
+def is_file_processed(file_path):
     if not os.path.exists(log_file_path):
         return False
     with open(log_file_path, 'r') as log_file:
         processed_files = log_file.read().splitlines()
-    return file_name in processed_files
+    return file_path in processed_files
 
 # Log the processed file
-def log_processed_file(file_name):
+def log_processed_file(file_path):
     with open(log_file_path, 'a') as log_file:
-        log_file.write(f"{file_name}\n")
+        log_file.write(f"{file_path}\n")
 
 # Function to process Excel and convert to JSON using openpyxl
 def process_excel_file(file_path, output_directory, records_per_file=100):
@@ -125,7 +125,7 @@ def check_directory_for_new_files(excel_directory, output_directory, polling_int
     while True:
         for file_name in os.listdir(excel_directory):
             file_path = os.path.join(excel_directory, file_name)
-            if file_name.endswith(".xlsx") and not is_file_processed(file_name):
+            if file_name.endswith(".xlsx") and not is_file_processed(file_path):
                 print(f"Processing new file: {file_path}")
                 process_excel_file(file_path, output_directory)
         time.sleep(polling_interval)
