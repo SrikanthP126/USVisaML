@@ -1,7 +1,7 @@
 import os
 import json
+import pandas as pd
 import datetime
-import openpyxl
 import time
 
 # Security Classification Mapping
@@ -17,7 +17,7 @@ log_file_path = "/path/to/processed_files.log"
 
 # Function to get the security classification abbreviation
 def get_security_classification(value):
-    return classification_map.get(value, "Unknown")  # Default to "Unknown" if not found
+    return classification_map.get(value, "Unknown")
 
 # Function to format the submission date
 def get_submission_date():
@@ -36,34 +36,39 @@ def log_processed_file(file_name):
     with open(log_file_path, 'a') as log_file:
         log_file.write(f"{file_name}\n")
 
-# Function to process Excel and convert to JSON
+# Function to process Excel and convert to JSON using pandas
 def process_excel_file(file_path, output_directory, records_per_file=100):
     if is_file_processed(file_path):
         print(f"File {file_path} has already been processed. Skipping.")
         return
 
-    wb = openpyxl.load_workbook(file_path, data_only=True)
+    # Load Excel file with pandas
+    excel_data = pd.ExcelFile(file_path)
 
-    for sheet_name in wb.sheetnames:
-        sheet = wb[sheet_name]
+    for sheet_name in excel_data.sheet_names:
+        df = excel_data.parse(sheet_name)
         current_records = []
         file_counter = 1
 
-        for row in sheet.iter_rows(min_row=9, values_only=True):
+        # Iterate over the rows in the DataFrame starting from index 8 (row 9 in Excel)
+        for index, row in df.iterrows():
+            if index < 8:
+                continue  # Skip the first 8 rows which contain metadata, not actual data
+
             relation_id = str(file_counter)
 
             record_metadata = {
-                "record_class": row[2],  # Assuming C9
-                "publisher": sheet['B1'].value,
-                "region": sheet['B4'].value,
-                "recordDate": row[8],  # Date from Excel
-                "provenance": sheet['D1'].value,
-                "security_classification": get_security_classification(sheet['D4'].value),
-                "contributor": sheet['D3'].value,
-                "creator": sheet['B2'].value,
-                "description": row[4],  # Assuming description
+                "record_class": row[2],  # Assuming column C9
+                "publisher": df.iloc[0, 1],  # B1
+                "region": df.iloc[3, 1],  # B4
+                "recordDate": row[8],  # Date
+                "provenance": df.iloc[0, 3],  # D1
+                "security_classification": get_security_classification(df.iloc[3, 3]),  # D4
+                "contributor": df.iloc[2, 3],  # D3
+                "creator": df.iloc[1, 1],  # B2
+                "description": row[4],  # Description from row
                 "language": "eng",
-                "title": row[5],  # Title from Excel
+                "title": row[5],  # Title from row
                 "Date Range": row[6],  # Date Range
                 "Major Description": row[7],  # Major Description
                 "Minor Description": row[8],  # Minor Description
@@ -72,11 +77,11 @@ def process_excel_file(file_path, output_directory, records_per_file=100):
             }
 
             file_metadata = {
-                "publisher": sheet['B1'].value,
-                "source_folder_path": row[1],  # Assuming source_folder_path from Excel
-                "source_file_name": row[0],  # Assuming source_file_name
-                "dz_file_name": row[0],  # Assuming dz_file_name
-                "file_tag": "zip"  # Assuming default file tag
+                "publisher": df.iloc[0, 1],  # B1
+                "source_folder_path": row[1],  # Source folder path
+                "source_file_name": row[0],  # Source file name
+                "dz_file_name": row[0],  # dz file name
+                "file_tag": "zip"  # Assuming a default file tag
             }
 
             create_record = {
@@ -111,7 +116,6 @@ def process_excel_file(file_path, output_directory, records_per_file=100):
                     json_file.write("\n")
             current_records = []
 
-    # Log the processed file
     log_processed_file(file_path)
     print(f"Finished processing {file_path}")
 
@@ -119,20 +123,14 @@ def process_excel_file(file_path, output_directory, records_per_file=100):
 def check_directory_for_new_files(excel_directory, output_directory, polling_interval=10):
     print(f"Watching directory: {excel_directory} for new Excel files...")
     while True:
-        # List all files in the directory
         for file_name in os.listdir(excel_directory):
             file_path = os.path.join(excel_directory, file_name)
             if file_name.endswith(".xlsx") and not is_file_processed(file_name):
                 print(f"Processing new file: {file_path}")
                 process_excel_file(file_path, output_directory)
-        
-        # Sleep for the specified polling interval (in seconds)
         time.sleep(polling_interval)
 
 if __name__ == "__main__":
-    # Set the directory to watch for new Excel files
     excel_directory = "/path/to/excel_directory/"
     output_directory = "/path/to/output_directory/"
-
-    # Start watching the directory for new files
     check_directory_for_new_files(excel_directory, output_directory)
