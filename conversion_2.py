@@ -1,9 +1,9 @@
 import os
 import json
+import uuid
 import openpyxl
 import datetime
 import time
-import uuid
 
 # Security Classification Mapping
 classification_map = {
@@ -25,19 +25,19 @@ def get_submission_date():
     return datetime.datetime.utcnow().isoformat() + 'Z'
 
 # Check if the file has already been processed
-def is_file_processed(file_path):
+def is_file_processed(file_name):
     if not os.path.exists(log_file_path):
         return False
     with open(log_file_path, 'r') as log_file:
         processed_files = log_file.read().splitlines()
-    return file_path in processed_files
+    return file_name in processed_files
 
 # Log the processed file
-def log_processed_file(file_path):
+def log_processed_file(file_name):
     with open(log_file_path, 'a') as log_file:
-        log_file.write(f"{file_path}\n")
+        log_file.write(f"{file_name}\n")
 
-# Function to process Excel and convert to JSON using openpyxl
+# Function to process Excel and convert to JSON
 def process_excel_file(file_path, output_directory, records_per_file=100):
     if is_file_processed(file_path):
         print(f"File {file_path} has already been processed. Skipping.")
@@ -45,29 +45,28 @@ def process_excel_file(file_path, output_directory, records_per_file=100):
 
     # Load Excel file with openpyxl
     workbook = openpyxl.load_workbook(file_path, data_only=True)
-
+    
     for sheet_name in workbook.sheetnames:
         sheet = workbook[sheet_name]
         current_records = []
         file_counter = 1
 
-        # Iterate over the rows starting from row 9 (1-based indexing in Excel)
+        # Iterate over the rows in the sheet starting from row 9
         for row in sheet.iter_rows(min_row=9, values_only=True):
             if row[0] is None:
-                continue  # Skip rows without data
-
-            # Generate unique relation_id using uuid
-            relation_id = str(uuid.uuid4())
+                continue  # Skip empty rows
+            
+            relation_id = str(uuid.uuid4())  # Create a unique relation ID
 
             record_metadata = {
                 "record_class": row[2],  # Assuming column C9
-                "publisher": sheet['B1'].value,  # B1
-                "region": sheet['B4'].value,  # B4
+                "publisher": sheet["B1"].value,  # B1
+                "region": sheet["B4"].value,  # B4
                 "recordDate": row[8],  # Date
-                "provenance": sheet['D1'].value,  # D1
-                "security_classification": get_security_classification(sheet['D4'].value),  # D4
-                "contributor": sheet['D3'].value,  # D3
-                "creator": sheet['B2'].value,  # B2
+                "provenance": sheet["D1"].value,  # D1
+                "security_classification": get_security_classification(sheet["D4"].value),  # D4
+                "contributor": sheet["D3"].value,  # D3
+                "creator": sheet["B2"].value,  # B2
                 "description": row[4],  # Description from row
                 "language": "eng",
                 "title": row[5],  # Title from row
@@ -79,7 +78,7 @@ def process_excel_file(file_path, output_directory, records_per_file=100):
             }
 
             file_metadata = {
-                "publisher": sheet['B1'].value,  # B1
+                "publisher": sheet["B1"].value,  # B1
                 "source_folder_path": row[1],  # Source folder path
                 "source_file_name": row[0],  # Source file name
                 "dz_file_name": row[0],  # dz file name
@@ -127,12 +126,12 @@ def check_directory_for_new_files(excel_directory, output_directory, polling_int
     while True:
         for file_name in os.listdir(excel_directory):
             file_path = os.path.join(excel_directory, file_name)
-            if file_name.endswith(".xlsx") and not is_file_processed(file_path):
+            if file_name.endswith(".xlsx") and not is_file_processed(file_name):
                 print(f"Processing new file: {file_path}")
                 process_excel_file(file_path, output_directory)
         time.sleep(polling_interval)
 
 if __name__ == "__main__":
-    excel_directory = "/path/to/excel_directory/"
-    output_directory = "/path/to/output_directory/"
+    excel_directory = "/path/to/excel_directory/"  # Update to your correct path
+    output_directory = "/path/to/output_directory/"  # Update to your correct path
     check_directory_for_new_files(excel_directory, output_directory)
