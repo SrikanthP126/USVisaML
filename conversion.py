@@ -28,9 +28,20 @@ def get_file_tag(file_name):
     else:
         return 'unknown'
 
-# Function to format date in ISO-8601
+# Function to format date in ISO-8601, handle partial dates like '2021-12'
 def format_iso_date(excel_date):
-    return datetime.strptime(excel_date, "%Y-%m-%d").isoformat() + "-05:00"
+    try:
+        # Check if the value is a string like '2021-12'
+        if isinstance(excel_date, str):
+            # If the date is in 'YYYY-MM' format, append '-01' to make it 'YYYY-MM-DD'
+            if len(excel_date) == 7:  # Example: '2021-12'
+                excel_date += '-01'  # Default to the first day of the month
+        return datetime.strptime(excel_date, "%Y-%m-%d").isoformat() + "-05:00"
+    except (ValueError, TypeError):
+        return None  # Skip the date if it's not in the correct format
+
+# Update this line in the main code to use the modified function
+record_date = format_iso_date(sheet['D9'].value)  # Now handles partial dates like '2021-12'
 
 # Process each sheet in the workbook
 for sheet_name in wb.sheetnames:
