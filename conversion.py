@@ -3,6 +3,7 @@ import json
 import openpyxl
 import datetime
 import time
+import uuid
 
 # Security Classification Mapping
 classification_map = {
@@ -55,7 +56,8 @@ def process_excel_file(file_path, output_directory, records_per_file=100):
             if row[0] is None:
                 continue  # Skip rows without data
 
-            relation_id = str(file_counter)
+            # Generate unique relation_id using uuid
+            relation_id = str(uuid.uuid4())
 
             record_metadata = {
                 "record_class": row[2],  # Assuming column C9
