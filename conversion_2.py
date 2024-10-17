@@ -1,9 +1,7 @@
 import os
 import json
-import uuid
-import openpyxl
 import datetime
-import time
+import uuid
 
 # Security Classification Mapping
 classification_map = {
@@ -13,63 +11,44 @@ classification_map = {
     "Public": "P"
 }
 
-# Log file to track processed files
-log_file_path = "/path/to/processed_files.log"
-
 # Function to get the security classification abbreviation
 def get_security_classification(value):
-    return classification_map.get(value, "Unknown")
+    return classification_map.get(value, "Unknown")  # Default to "Unknown" if not found
 
 # Function to format the submission date
 def get_submission_date():
-    return datetime.datetime.utcnow().isoformat() + 'Z'
+    return datetime.datetime.utcnow().isoformat() + 'Z'  # ISO 8601 timestamp
 
-# Check if the file has already been processed
-def is_file_processed(file_name):
-    if not os.path.exists(log_file_path):
-        return False
-    with open(log_file_path, 'r') as log_file:
-        processed_files = log_file.read().splitlines()
-    return file_name in processed_files
+# Function to process new Excel file and generate JSON
+def process_excel_file(file_path, output_directory):
+    # Assume we load data from the Excel file (replacing this with real Excel loading logic)
+    excel_data = load_excel_file(file_path)
 
-# Log the processed file
-def log_processed_file(file_name):
-    with open(log_file_path, 'a') as log_file:
-        log_file.write(f"{file_name}\n")
-
-# Function to process Excel and convert to JSON
-def process_excel_file(file_path, output_directory, records_per_file=100):
-    if is_file_processed(file_path):
-        print(f"File {file_path} has already been processed. Skipping.")
-        return
-
-    # Load Excel file with openpyxl
-    workbook = openpyxl.load_workbook(file_path, data_only=True)
-    
-    for sheet_name in workbook.sheetnames:
-        sheet = workbook[sheet_name]
+    for sheet_name, sheet in excel_data.items():
         current_records = []
         file_counter = 1
 
-        # Iterate over the rows in the sheet starting from row 9
-        for row in sheet.iter_rows(min_row=9, values_only=True):
-            if row[0] is None:
-                continue  # Skip empty rows
-            
-            relation_id = str(uuid.uuid4())  # Create a unique relation ID
+        # Iterate over the rows in the Excel sheet
+        for row_index, row in enumerate(sheet):
+            if row_index < 8:
+                continue  # Skip the first 8 rows
 
+            # Generate unique relation ID for each pair of create_record and upload_new_file
+            relation_id = str(uuid.uuid4())
+
+            # Map fields from Excel to JSON
             record_metadata = {
                 "record_class": row[2],  # Assuming column C9
-                "publisher": sheet["B1"].value,  # B1
-                "region": sheet["B4"].value,  # B4
+                "publisher": sheet['B1'],  # B1
+                "region": sheet['B4'],  # B4
                 "recordDate": row[8],  # Date
-                "provenance": sheet["D1"].value,  # D1
-                "security_classification": get_security_classification(sheet["D4"].value),  # D4
-                "contributor": sheet["D3"].value,  # D3
-                "creator": sheet["B2"].value,  # B2
-                "description": row[4],  # Description from row
-                "language": "eng",
-                "title": row[5],  # Title from row
+                "provenance": sheet['D1'],  # D1
+                "security_classification": get_security_classification(sheet['D4']),  # D4
+                "contributor": sheet['D3'],  # D3
+                "creator": sheet['B2'],  # B2
+                "description": row[4],  # Description
+                "language": "eng",  # Hardcoded as per requirement
+                "title": row[5],  # Title
                 "Date Range": row[6],  # Date Range
                 "Major Description": row[7],  # Major Description
                 "Minor Description": row[8],  # Minor Description
@@ -78,13 +57,14 @@ def process_excel_file(file_path, output_directory, records_per_file=100):
             }
 
             file_metadata = {
-                "publisher": sheet["B1"].value,  # B1
+                "publisher": sheet['B1'],  # B1
                 "source_folder_path": row[1],  # Source folder path
                 "source_file_name": row[0],  # Source file name
                 "dz_file_name": row[0],  # dz file name
-                "file_tag": "zip"  # Assuming a default file tag
+                "file_tag": "zip"  # Assuming the file tag is "zip" based on extension
             }
 
+            # Create JSON data
             create_record = {
                 "operation": "create_record",
                 "relation_id": relation_id,
@@ -97,41 +77,38 @@ def process_excel_file(file_path, output_directory, records_per_file=100):
                 "file_metadata": file_metadata
             }
 
+            # Append both operations to the current records
             current_records.append(create_record)
             current_records.append(upload_new_file)
 
-            if len(current_records) >= records_per_file * 2:
-                output_file_path = os.path.join(output_directory, f'{sheet_name}_{file_counter}.a360')
-                with open(output_file_path, 'w') as json_file:
-                    for record in current_records:
-                        json.dump(record, json_file, separators=(',', ':'))
-                        json_file.write("\n")
-                current_records = []
-                file_counter += 1
+        # Write out JSON files
+        output_file_path = os.path.join(output_directory, f'{sheet_name}_output_{file_counter}.a360')
+        with open(output_file_path, 'w') as json_file:
+            for record in current_records:
+                json.dump(record, json_file, separators=(',', ':'))
+                json_file.write("\n")
 
-        if current_records:
-            output_file_path = os.path.join(output_directory, f'{sheet_name}_{file_counter}.a360')
-            with open(output_file_path, 'w') as json_file:
-                for record in current_records:
-                    json.dump(record, json_file, separators=(',', ':'))
-                    json_file.write("\n")
-            current_records = []
+        print(f"Processed and saved JSON for {file_path}")
 
-    log_processed_file(file_path)
-    print(f"Finished processing {file_path}")
+# Function to load Excel data (stub for actual Excel loading logic)
+def load_excel_file(file_path):
+    # Replace with actual logic to read Excel
+    return {
+        "sheet1": [  # Fake data for demonstration purposes
+            ["FileName1.zip", "FolderPath1", "Class1", "Description1", "DateRange1", "MajorDesc1", "MinorDesc1", "Ref1"],
+            ["FileName2.zip", "FolderPath2", "Class2", "Description2", "DateRange2", "MajorDesc2", "MinorDesc2", "Ref2"],
+        ]
+    }
 
-# Function to check directory for new Excel files
-def check_directory_for_new_files(excel_directory, output_directory, polling_interval=10):
-    print(f"Watching directory: {excel_directory} for new Excel files...")
-    while True:
-        for file_name in os.listdir(excel_directory):
-            file_path = os.path.join(excel_directory, file_name)
-            if file_name.endswith(".xlsx") and not is_file_processed(file_name):
-                print(f"Processing new file: {file_path}")
-                process_excel_file(file_path, output_directory)
-        time.sleep(polling_interval)
-
+# Main code
 if __name__ == "__main__":
-    excel_directory = "/path/to/excel_directory/"  # Update to your correct path
-    output_directory = "/path/to/output_directory/"  # Update to your correct path
-    check_directory_for_new_files(excel_directory, output_directory)
+    excel_directory = "/path/to/excel_directory"
+    output_directory = "/path/to/output_directory"
+    
+    # Loop through files in the directory and process each Excel file
+    for file_name in os.listdir(excel_directory):
+        if file_name.endswith(".xlsx"):
+            file_path = os.path.join(excel_directory, file_name)
+            process_excel_file(file_path, output_directory)
+    
+    print("All files processed.")
