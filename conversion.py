@@ -9,6 +9,13 @@ from datetime import datetime
 excel_file_path = 'path_to_your_excel_file.xlsx'  # Replace with the actual Excel file path
 wb = load_workbook(excel_file_path, data_only=True)
 
+# Directory where the output files will be stored
+output_directory = '/path/to/output_folder'  # Replace with your desired directory path
+
+# Ensure the output directory exists, if not, create it
+if not os.path.exists(output_directory):
+    os.makedirs(output_directory)
+
 # Function to get file extension and map to file_tag
 def get_file_tag(file_name):
     ext = os.path.splitext(file_name)[1].lower()
@@ -107,7 +114,7 @@ for sheet_name in wb.sheetnames:
 
         # Split into multiple JSON files if record limit is reached
         if len(current_records) >= records_per_file * 2:
-            output_file_path = f'{sheet_name}_{file_counter}.a360'
+            output_file_path = os.path.join(output_directory, f'{sheet_name}_{file_counter}.a360')
             with open(output_file_path, 'w') as json_file:
                 json.dump(current_records, json_file, indent=4)
             current_records = []  # Reset for the next set
@@ -115,7 +122,7 @@ for sheet_name in wb.sheetnames:
 
     # Write the remaining records to a file
     if current_records:
-        output_file_path = f'{sheet_name}_{file_counter}.a360'
+        output_file_path = os.path.join(output_directory, f'{sheet_name}_{file_counter}.a360')
         with open(output_file_path, 'w') as json_file:
             json.dump(current_records, json_file, indent=4)
 
