@@ -1,6 +1,6 @@
 import os
 import json
-import pandas as pd
+import openpyxl
 import datetime
 import time
 
@@ -36,36 +36,36 @@ def log_processed_file(file_name):
     with open(log_file_path, 'a') as log_file:
         log_file.write(f"{file_name}\n")
 
-# Function to process Excel and convert to JSON using pandas
+# Function to process Excel and convert to JSON using openpyxl
 def process_excel_file(file_path, output_directory, records_per_file=100):
     if is_file_processed(file_path):
         print(f"File {file_path} has already been processed. Skipping.")
         return
 
-    # Load Excel file with pandas
-    excel_data = pd.ExcelFile(file_path)
+    # Load Excel file with openpyxl
+    workbook = openpyxl.load_workbook(file_path, data_only=True)
 
-    for sheet_name in excel_data.sheet_names:
-        df = excel_data.parse(sheet_name)
+    for sheet_name in workbook.sheetnames:
+        sheet = workbook[sheet_name]
         current_records = []
         file_counter = 1
 
-        # Iterate over the rows in the DataFrame starting from index 8 (row 9 in Excel)
-        for index, row in df.iterrows():
-            if index < 8:
-                continue  # Skip the first 8 rows which contain metadata, not actual data
+        # Iterate over the rows starting from row 9 (1-based indexing in Excel)
+        for row in sheet.iter_rows(min_row=9, values_only=True):
+            if row[0] is None:
+                continue  # Skip rows without data
 
             relation_id = str(file_counter)
 
             record_metadata = {
                 "record_class": row[2],  # Assuming column C9
-                "publisher": df.iloc[0, 1],  # B1
-                "region": df.iloc[3, 1],  # B4
+                "publisher": sheet['B1'].value,  # B1
+                "region": sheet['B4'].value,  # B4
                 "recordDate": row[8],  # Date
-                "provenance": df.iloc[0, 3],  # D1
-                "security_classification": get_security_classification(df.iloc[3, 3]),  # D4
-                "contributor": df.iloc[2, 3],  # D3
-                "creator": df.iloc[1, 1],  # B2
+                "provenance": sheet['D1'].value,  # D1
+                "security_classification": get_security_classification(sheet['D4'].value),  # D4
+                "contributor": sheet['D3'].value,  # D3
+                "creator": sheet['B2'].value,  # B2
                 "description": row[4],  # Description from row
                 "language": "eng",
                 "title": row[5],  # Title from row
@@ -77,7 +77,7 @@ def process_excel_file(file_path, output_directory, records_per_file=100):
             }
 
             file_metadata = {
-                "publisher": df.iloc[0, 1],  # B1
+                "publisher": sheet['B1'].value,  # B1
                 "source_folder_path": row[1],  # Source folder path
                 "source_file_name": row[0],  # Source file name
                 "dz_file_name": row[0],  # dz file name
