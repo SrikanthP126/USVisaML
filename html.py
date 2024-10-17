@@ -2,6 +2,7 @@ import os
 import json
 import uuid
 from datetime import datetime
+from openpyxl import load_workbook
 import time
 
 # Security Classification Mapping
@@ -19,6 +20,22 @@ def get_security_classification(value):
 # Function to format the submission date
 def get_submission_date():
     return datetime.utcnow().isoformat() + 'Z'
+
+# Log file to track processed files
+log_file_path = "/path/to/processed_files.log"
+
+# Check if the file has already been processed
+def is_file_processed(file_name):
+    if not os.path.exists(log_file_path):
+        return False
+    with open(log_file_path, 'r') as log_file:
+        processed_files = log_file.read().splitlines()
+    return file_name in processed_files
+
+# Log the processed file
+def log_processed_file(file_name):
+    with open(log_file_path, 'a') as log_file:
+        log_file.write(f"{file_name}\n")
 
 # Process Excel file and convert to JSON
 def process_excel_file(file_path, output_directory):
@@ -99,41 +116,30 @@ def process_excel_file(file_path, output_directory):
                     json_file.write("\n")
             file_counter += 1
 
+    # Log the processed file
+    log_processed_file(file_path)
     print(f"Finished processing {file_path}")
 
-# Function to check directory for new Excel files
-def check_directory_for_new_files(excel_directory, output_directory, log_file_path):
-    processed_files = set()
+# Check directory for new Excel files
+def check_directory_for_new_files(excel_directory, output_directory):
+    print(f"Watching directory: {excel_directory} for new Excel files...")
 
-    if os.path.exists(log_file_path):
-        with open(log_file_path, 'r') as log_file:
-            processed_files.update(log_file.read().splitlines())
+    processed = False
+    for file_name in os.listdir(excel_directory):
+        file_path = os.path.join(excel_directory, file_name)
+        if file_name.endswith(".xlsx") and not is_file_processed(file_name):
+            print(f"Processing new file: {file_path}")
+            process_excel_file(file_path, output_directory)
+            processed = True
 
-    while True:
-        new_file_found = False
+    if not processed:
+        print("No new files to process. Exiting...")
+        return False  # Stop the loop if no new files
+    return True  # Continue if files were processed
 
-        for file_name in os.listdir(excel_directory):
-            file_path = os.path.join(excel_directory, file_name)
-            if file_name.endswith(".xlsx") and file_name not in processed_files:
-                print(f"Processing new file: {file_path}")
-                process_excel_file(file_path, output_directory)
-                new_file_found = True
-                processed_files.add(file_name)
-
-                # Log the processed file
-                with open(log_file_path, 'a') as log_file:
-                    log_file.write(f"{file_name}\n")
-
-        if not new_file_found:
-            print("No new files to process. Stopping the script.")
-            break  # Stop the loop if no new files are found
-
-        time.sleep(10)  # Sleep for a while before checking again
-
-# Main function to initiate the process
 if __name__ == "__main__":
-    excel_directory = "/path/to/excel_directory/"
-    output_directory = "/path/to/output_directory/"
-    log_file_path = "/path/to/log_file.txt"
-
-    check_directory_for_new_files(excel_directory, output_directory, log_file_path)
+    excel_directory = "/ark/landing_zone/exceltojson/metadata_excel/"
+    output_directory = "/ark/landing_zone/exceltojson/output/"
+    
+    while check_directory_for_new_files(excel_directory, output_directory):
+        time.sleep(5
