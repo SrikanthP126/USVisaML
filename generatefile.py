@@ -36,6 +36,12 @@ def get_file_tag(file_name):
 # Load the workbook
 wb = load_workbook(excel_file_path, data_only=True)
 
+# Helper function to write each record individually as one line in the file
+def write_records_to_file(output_file_path, records):
+    with open(output_file_path, 'w') as json_file:
+        for record in records:
+            json_file.write(json.dumps(record, separators=(',', ':')) + '\n')  # One record per line
+
 # Process each sheet in the workbook
 for sheet_name in wb.sheetnames:
     sheet = wb[sheet_name]
@@ -113,20 +119,16 @@ for sheet_name in wb.sheetnames:
             "file_metadata": file_metadata
         })
 
-# Write each record individually as one line in the file
-def write_records_to_file(output_file_path, records):
-    with open(output_file_path, 'w') as json_file:
-        for record in records:
-            json_file.write(json.dumps(record, separators=(',', ':')) + '\n')  # One record per line
+        # Write to file if enough records are collected
+        if len(current_records) >= records_per_file * 2:
+            output_file_path = os.path.join(output_directory, f'{sheet_name}_{file_counter}.a360')
+            write_records_to_file(output_file_path, current_records)
+            current_records = []  # Reset for the next batch
+            file_counter += 1
 
-# Write to file if enough records are collected
-if len(current_records) >= records_per_file * 2:
-    output_file_path = os.path.join(output_directory, f'{sheet_name}_{file_counter}.a360')
-    write_records_to_file(output_file_path, current_records)
-    current_records = []  # Reset for the next batch
-    file_counter += 1
+    # Write any remaining records to a final file
+    if current_records:
+        output_file_path = os.path.join(output_directory, f'{sheet_name}_{file_counter}.a360')
+        write_records_to_file(output_file_path, current_records)
 
-# Write any remaining records to a final file
-if current_records:
-    output_file_path = os.path.join(output_directory, f'{sheet_name}_{file_counter}.a360')
-    write_records_to_file(output_file_path, current_records)
+print("JSON files created successfully.")
