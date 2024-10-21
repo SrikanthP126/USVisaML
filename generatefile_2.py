@@ -1,6 +1,7 @@
 import os
 import json
 import uuid
+import calendar
 from openpyxl import load_workbook
 from datetime import datetime
 
@@ -11,23 +12,32 @@ output_directory = '/path/to/json/output/'
 if not os.path.exists(output_directory):
     os.makedirs(output_directory)
 
-# Helper function to format the date to ISO 8601 format
+# Helper function to format the date to the last day of the month (if month/year is provided)
 def format_iso_date(excel_date):
     try:
         if isinstance(excel_date, str):
-            if len(excel_date) == 7:  # Handling year-month format
-                excel_date += '-01'
+            if len(excel_date) == 7:  # Year-Month format
+                year, month = excel_date.split('-')
+                # Get the last day of the month
+                last_day = calendar.monthrange(int(year), int(month))[1]
+                excel_date = f"{year}-{month}-{last_day}"
             return datetime.strptime(excel_date, "%Y-%m-%d").isoformat() + "-05:00"
     except (ValueError, TypeError):
         return None
 
-# Helper function to get file tag based on file extension
+# Helper function to get file tag based on file extension, including images and more types
 def get_file_tag(file_name):
     ext = os.path.splitext(file_name)[1].lower()
     return {
         '.doc': 'word',
         '.pdf': 'pdf',
-        '.zip': 'zip'
+        '.zip': 'zip',
+        '.jpg': 'image',
+        '.jpeg': 'image',
+        '.png': 'image',
+        '.txt': 'text',
+        '.csv': 'csv',
+        # Add more types if needed
     }.get(ext, 'unknown')
 
 # Helper function to write records to JSON file
@@ -62,6 +72,9 @@ def process_excel_file(file_path):
         creator = sheet['B2'].value
         contributor = sheet['D2'].value
         cost_center = sheet['B3'].value
+
+        # Ensure the cost_center is always a 12-digit number
+        cost_center = str(cost_center).zfill(12)
 
         file_counter = 1
         current_records = []
