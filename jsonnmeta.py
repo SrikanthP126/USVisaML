@@ -37,12 +37,15 @@ def write_records_to_file(output_file_path, records):
     with open(output_file_path, 'w') as json_file:
         for record in records:
             json_file.write(json.dumps(record, separators=(',', ':')) + '\n')
+    print(f"JSON file created: {output_file_path}")
 
 # Function to process each Excel file in the directory
 def process_excel_file(file_path):
+    print(f"Processing file: {file_path}")
     wb = load_workbook(file_path, data_only=True)
     # Only process the "Metadata1" sheet if it exists
     if "Metadata1" in wb.sheetnames:
+        print(f"'Metadata1' sheet found in {file_path}")
         sheet = wb["Metadata1"]
         
         # Read metadata from fixed cells
@@ -149,6 +152,8 @@ def process_excel_file(file_path):
 # Function to process files in a directory
 def process_directory(directory_path):
     excel_files = [f for f in os.listdir(directory_path) if f.endswith('.xlsx')]
+    if not excel_files:
+        print("No Excel files found in the input directory.")
     for excel_file in excel_files:
         file_path = os.path.join(directory_path, excel_file)
         process_excel_file(file_path)
