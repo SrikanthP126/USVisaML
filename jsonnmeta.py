@@ -37,15 +37,15 @@ def write_records_to_file(output_file_path, records):
     with open(output_file_path, 'w') as json_file:
         for record in records:
             json_file.write(json.dumps(record, separators=(',', ':')) + '\n')
-    print(f"JSON file created: {output_file_path}")
 
 # Function to process each Excel file in the directory
 def process_excel_file(file_path):
     print(f"Processing file: {file_path}")
     wb = load_workbook(file_path, data_only=True)
+    file_count = 0  # Track the number of output files created for this Excel file
+
     # Only process the "Metadata1" sheet if it exists
     if "Metadata1" in wb.sheetnames:
-        print(f"'Metadata1' sheet found in {file_path}")
         sheet = wb["Metadata1"]
         
         # Read metadata from fixed cells
@@ -73,6 +73,9 @@ def process_excel_file(file_path):
         file_counter = 1
         current_records = []
         records_per_file = 100
+
+        # Extract the base name of the Excel file for naming output files
+        excel_base_name = os.path.splitext(os.path.basename(file_path))[0]
 
         # Iterate through the rows starting from row 9
         for row in sheet.iter_rows(min_row=9, values_only=True):
@@ -131,23 +134,27 @@ def process_excel_file(file_path):
 
             # Write records to file if enough records are collected
             if len(current_records) >= records_per_file * 2:
-                excel_base_name = os.path.splitext(os.path.basename(file_path))[0]
                 output_file_path = os.path.join(
-                    output_directory, f'{excel_base_name}_{file_counter}_qa_test.a360'
+                    output_directory, f'{excel_base_name}_{file_counter}_test.a360'
                 )
                 write_records_to_file(output_file_path, current_records)
                 current_records = []  # Reset for next batch
                 file_counter += 1
+                file_count += 1
 
         # Write any remaining records to a final file
         if current_records:
-            excel_base_name = os.path.splitext(os.path.basename(file_path))[0]
             output_file_path = os.path.join(
-                output_directory, f'{excel_base_name}_{file_counter}_sample_preprod_test.a360'
+                output_directory, f'{excel_base_name}_{file_counter}_test.a360'
             )
             write_records_to_file(output_file_path, current_records)
+            file_count += 1  # Count the final file
+
     else:
         print(f"'Metadata1' sheet not found in {file_path}")
+
+    # Print the total count of files generated for this Excel file
+    print(f"Files created for {os.path.basename(file_path)}: {file_count}")
 
 # Function to process files in a directory
 def process_directory(directory_path):
