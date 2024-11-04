@@ -1,45 +1,74 @@
 import os
 from azure.storage.blob import BlobServiceClient
-from azure.identity import ManagedIdentityCredential
-from logging import INFO, getLogger
-from azure.monitor.opentelemetry import configure_azure_monitor
+import logging
 
-# Set up monitoring and logging
+# Configure logger
 configure_azure_monitor()
-logger = getLogger(__name__)
-logger.setLevel(INFO)
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
-def main(request_data: dict) -> dict:
+# Path to the tracking file
+TRACKING_FILE_PATH = "/ark/landing_zone/downloaded_files.txt"
+
+def load_downloaded_files():
+    """Load the list of already downloaded files from the tracking file."""
+    if os.path.exists(TRACKING_FILE_PATH):
+        with open(TRACKING_FILE_PATH, "r") as file:
+            return set(line.strip() for line in file)
+    return set()
+
+def update_downloaded_files(new_files):
+    """Append newly downloaded files to the tracking file."""
+    with open(TRACKING_FILE_PATH, "a") as file:
+        for file_name in new_files:
+            file.write(f"{file_name}\n")
+
+def main(input: dict) -> dict:
     try:
-        # Retrieve the filepath from request_data
-        file_name = request_data.get("filepath")
-        if not file_name:
+        # Use the connection string for authentication
+        connection_string = os.getenv("AZURE_STORAGE_CONNECTION_STRING")
+        container_name = os.getenv("BLOB_STORAGE_IDF_CONTAINER_NAME")
+        blob_service_client = BlobServiceClient.from_connection_string(connection_string)
+
+        filepath = input.get("filepath")
+        if not filepath:
             logger.error("Filepath not provided for download action")
             return {"status": "fail", "message": "Filepath not provided"}
 
-        # Set up the BlobServiceClient
-        container_name = os.getenv("BLOB_STORAGE_IDF_CONTAINER_NAME")
-        blob_service_client = BlobServiceClient(
-            account_url=os.getenv("BLOB_STORAGE_ACCOUNT_URL"),
-            credential=ManagedIdentityCredential()
-        )
+        # Load previously downloaded files
+        downloaded_files = load_downloaded_files()
 
-        # Access the container and specific blob
-        blob_client = blob_service_client.get_blob_client(container=container_name, blob=file_name)
-        if not blob_client.exists():
-            logger.error("Specified file not found in Azure storage")
-            return {"status": "fail", "message": "File not found in Azure storage"}
+        container_client = blob_service_client.get_container_client(container_name)
+        blobs = container_client.list_blobs(name_starts_with=filepath)
 
-        # Define the local path to save the downloaded file
-        local_path = f"/ark/landing_zone/downloads_from_azure/{os.path.basename(file_name)}"
-        
-        # Download the blob to the specified on-prem directory
-        with open(local_path, "wb") as download_file:
-            download_stream = blob_client.download_blob()
-            download_file.write(download_stream.readall())
+        new_files = []  # To track files downloaded in this session
+        for blob in blobs:
+            file_name = blob.name.split("/")[-1]  # Extract the file name from the path
 
-        logger.info(f"File '{file_name}' downloaded successfully to '{local_path}'")
-        return {"status": "success", "message": f"File downloaded to {local_path}"}
+            # Skip files that have already been downloaded
+            if file_name in downloaded_files:
+                logger.info(f"Skipping already downloaded file: {file_name}")
+                continue
+
+            # Define local path for the new file
+            local_path = f"/ark/landing_zone/downloads_from_azure/{file_name}"
+            blob_client = blob_service_client.get_blob_client(container=container_name, blob=blob.name)
+            
+            # Download the new file
+            with open(local_path, "wb") as download_file:
+                download_stream = blob_client.download_blob()
+                download_file.write(download_stream.readall())
+            
+            new_files.append(file_name)
+            logger.info(f"File '{file_name}' downloaded successfully to '{local_path}'")
+
+        # Update the tracking file with newly downloaded files
+        update_downloaded_files(new_files)
+
+        return {
+            "status": "success",
+            "message": f"Newly downloaded files: {new_files}"
+        }
 
     except Exception as e:
         logger.error(f"Error in BlobDownloadActivity: {str(e)}")
