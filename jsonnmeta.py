@@ -44,9 +44,12 @@ def process_excel_file(file_path):
     wb = load_workbook(file_path, data_only=True)
     file_count = 0  # Track the number of output files created for this Excel file
 
-    # Only process the "Metadata1" sheet if it exists
-    if "Metadata1" in wb.sheetnames:
-        sheet = wb["Metadata1"]
+    # Filter only sheets that start with "Metadata"
+    metadata_sheets = [sheet_name for sheet_name in wb.sheetnames if sheet_name.startswith("Metadata")]
+
+    for sheet_name in metadata_sheets:
+        print(f"Processing sheet: {sheet_name}")
+        sheet = wb[sheet_name]
         
         # Read metadata from fixed cells
         publisher = sheet['B1'].value
@@ -135,7 +138,7 @@ def process_excel_file(file_path):
             # Write records to file if enough records are collected
             if len(current_records) >= records_per_file * 2:
                 output_file_path = os.path.join(
-                    output_directory, f'{excel_base_name}_{file_counter}_test.a360'
+                    output_directory, f'{excel_base_name}_{sheet_name}_{file_counter}_test.a360'
                 )
                 write_records_to_file(output_file_path, current_records)
                 current_records = []  # Reset for next batch
@@ -145,13 +148,10 @@ def process_excel_file(file_path):
         # Write any remaining records to a final file
         if current_records:
             output_file_path = os.path.join(
-                output_directory, f'{excel_base_name}_{file_counter}_test.a360'
+                output_directory, f'{excel_base_name}_{sheet_name}_{file_counter}_test.a360'
             )
             write_records_to_file(output_file_path, current_records)
             file_count += 1  # Count the final file
-
-    else:
-        print(f"'Metadata1' sheet not found in {file_path}")
 
     # Print the total count of files generated for this Excel file
     print(f"Files created for {os.path.basename(file_path)}: {file_count}")
