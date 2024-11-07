@@ -64,9 +64,9 @@ for index, row in df.iterrows():
     # Updated field mappings as per the image
     record = {
         "record_class_code": row['Record Class Code'],
-        "record_class_name": row['C – Record Class Name M Edits'],  # Using Column C instead of B
-        "record_class_description": row['G – Description M Edits'],  # Using Column G instead of F
-        "business_function": row['E'],  # Using Column E instead of D
+        "record_class_name": row['Record_Class_Name_M_Edits'],  # Using renamed column
+        "record_class_description": row['Description_M_Edits'],  # Using renamed column
+        "business_function": row['Business_Function'],  # Using renamed column
         "retention_period": retention_period,
         "retention_trigger_field": "RecordDate" if retention_period_value in ['PERM', 'IND', 'LI', 'Life of Corporation'] else "EventDate",
         "retention_type": "YearEnd",
