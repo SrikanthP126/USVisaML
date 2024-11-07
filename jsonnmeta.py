@@ -1,3 +1,44 @@
+import os
+import json
+import uuid
+import calendar
+from openpyxl import load_workbook
+from datetime import datetime
+
+# Directory containing multiple Excel files
+input_directory = '/ark/landing_zone/exceltosjon/metadata_excel/'
+output_directory = '/ark/landing_zone/exceltosjon/metadata_json/'
+
+if not os.path.exists(output_directory):
+    os.makedirs(output_directory)
+
+# Helper function to format the date to the last day of the month (if month/year is provided)
+def format_iso_date(excel_date):
+    try:
+        if isinstance(excel_date, str):
+            if len(excel_date) == 7:  # Year-Month format (e.g., 2022-02)
+                year, month = excel_date.split('-')
+                last_day = calendar.monthrange(int(year), int(month))[1]  # Get last day of the month
+                excel_date = f"{year}-{month}-{last_day}"  # Construct the full date
+                return datetime.strptime(excel_date, "%Y-%m-%d").isoformat() + "-05:00"
+    except (ValueError, TypeError):
+        return None
+
+# Helper function to get file tag based on file extension
+def get_file_tag(file_name):
+    ext = os.path.splitext(file_name)[1].lower()
+    return {
+        '.doc': 'word', '.pdf': 'pdf', '.zip': 'zip', '.jpg': 'image', '.jpeg': 'image',
+        '.png': 'image', '.csv': 'csv', '.txt': 'text', '.xlsx': 'excel'
+    }.get(ext, 'unknown')
+
+# Helper function to write records to JSON file
+def write_records_to_file(output_file_path, records):
+    with open(output_file_path, 'w') as json_file:
+        for record in records:
+            json_file.write(json.dumps(record, separators=(',', ':')) + '\n')
+
+# Function to process each Excel file in the directory
 def process_excel_file(file_path):
     print(f"Processing file: {file_path}")
     wb = load_workbook(file_path, data_only=True)
@@ -114,3 +155,18 @@ def process_excel_file(file_path):
 
     # Print the total count of files generated for this Excel file
     print(f"Files created for {os.path.basename(file_path)}: {file_count}")
+
+# Function to process files in a directory
+def process_directory(directory_path):
+    excel_files = [f for f in os.listdir(directory_path) if f.endswith('.xlsx')]
+    if not excel_files:
+        print("No Excel files found in the input directory.")
+    for excel_file in excel_files:
+        file_path = os.path.join(directory_path, excel_file)
+        process_excel_file(file_path)
+
+    print("All Excel files have been processed. Script will now exit.")
+
+# Main function to trigger the processing
+if __name__ == "__main__":
+    process_directory(input_directory)
