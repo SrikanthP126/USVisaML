@@ -18,24 +18,19 @@ log_message "Download process started."
 
 # Loop through metadata file to download files
 while IFS= read -r line; do
-  file_path=$(echo "$line" | awk '{print $2}')
-  if [[ "$file_path" =~ ^idf/response/[^/]+\.[^.]+$ ]]; then
-    filename_only=$(basename "$file_path")
-    log_message "Attempting to download file: $file_path"
-    
-    curl -X 'GET' "https://func-ark-prod-aze2.azurewebsites.net/api/getfile?name=$file_path" \
-      -H 'accept: application/json' \
-      --output "${DEST_DIR}/${filename_only}" \
-      --cert "$CERT_PATH" \
-      --pass "$PASS"
+  file_path=$(echo "$line" | awk '{print $1}')
+  log_message "Attempting to download file: $file_path"
+  
+  curl -X 'GET' "https://func-ark-prod-aze2.azurewebsites.net/api/getfile?name=$file_path" \
+    -H 'accept: application/json' \
+    --output "${DEST_DIR}/${file_path}" \
+    --cert "$CERT_PATH" \
+    --pass "$PASS"
 
-    if [[ $? -eq 0 ]]; then
-      log_message "Successfully downloaded: ${filename_only}"
-    else
-      log_message "Failed to download: ${filename_only}"
-    fi
+  if [[ $? -eq 0 ]]; then
+    log_message "Successfully downloaded: ${file_path}"
   else
-    log_message "Skipping invalid file path: $file_path"
+    log_message "Failed to download: ${file_path}"
   fi
 
 done < "$metadata_file"
