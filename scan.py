@@ -1,5 +1,6 @@
 import requests
 import base64
+import getpass
 import json
 
 # Step 1: Define the server details
@@ -9,7 +10,7 @@ SCANS_ENDPOINT = f"https://{MX_IP_ADDRESS}:8083/SecureSphere/api/v1/scans"
 
 # Step 2: Provide credentials for authentication
 USERNAME = input("Enter your username: ")
-PASSWORD = input("Enter your password: ")
+PASSWORD = getpass.getpass("Enter your password (input will be hidden): ")
 
 # Step 3: Encode the credentials in Base64
 credentials = f"{USERNAME}:{PASSWORD}"
