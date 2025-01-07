@@ -6,7 +6,7 @@ import getpass
 # Step 1: Define server details
 OLD_SERVER_IP = "your_old_server_ip_or_domain"  # Replace with old server's IP or domain
 AUTH_ENDPOINT = f"https://{OLD_SERVER_IP}:8083/SecureSphere/api/v1/auth/session"
-SCANS_ENDPOINT = f"https://{OLD_SERVER_IP}:8083/SecureSphere/api/v1/scans"
+SCAN_DETAILS_ENDPOINT = f"https://{OLD_SERVER_IP}:8083/SecureSphere/api/v1/conf/assessment/scans"
 
 # Step 2: Authenticate with the old server
 USERNAME = input("Enter your username for the old server: ")
@@ -20,7 +20,6 @@ headers = {
     "Content-Type": "application/json"
 }
 
-# Step 3: Authenticate with the old server
 def authenticate():
     try:
         print("Authenticating with the old server...")
@@ -35,43 +34,43 @@ def authenticate():
         print(f"Error during authentication: {e}")
         return None
 
-# Step 4: Fetch all scans (basic information)
-def fetch_all_scans(cookies):
+def fetch_scan_details(scan_name, cookies):
     try:
-        print("Fetching the list of scans...")
-        response = requests.get(SCANS_ENDPOINT, headers=headers, cookies=cookies, verify=False)
+        print(f"Fetching details for scan: {scan_name}...")
+        url = f"{SCAN_DETAILS_ENDPOINT}/{scan_name}"
+        response = requests.get(url, headers=headers, cookies=cookies, verify=False)
         if response.status_code == 200:
-            scans = response.json()
-            print(f"Successfully retrieved {len(scans)} scans.")
-            return scans
+            return response.json()  # Return the scan details as JSON
         else:
-            print(f"Failed to fetch scans: {response.status_code} - {response.text}")
-            return []
+            print(f"Failed to fetch details for scan {scan_name}: {response.status_code} - {response.text}")
+            return None
     except Exception as e:
-        print(f"Error during fetching scans: {e}")
-        return []
+        print(f"Error fetching details for scan {scan_name}: {e}")
+        return None
 
-# Step 5: Fetch detailed information for each scan
-def fetch_scan_details(scans, cookies):
+def main():
+    # Step 3: Authenticate with the old server
+    cookies = authenticate()
+    if not cookies:
+        print("Authentication failed. Exiting...")
+        return
+
+    # Step 4: Load scan names from scans.json
+    try:
+        with open("scans.json", "r") as file:
+            scan_names = [name.strip() for name in json.load(file) if name.startswith("PNC")]
+        print(f"Loaded {len(scan_names)} scan names starting with 'PNC'.")
+    except Exception as e:
+        print(f"Error reading scans.json file: {e}")
+        return
+
+    # Step 5: Fetch details for each scan and save to detailed_scans.json
     detailed_scans = []
-    for scan in scans:
-        scan_id = scan["id"]  # Assuming "id" is the unique identifier for each scan
-        scan_name = scan["name"]
-        print(f"Fetching details for scan: {scan_name} (ID: {scan_id})...")
-        scan_details_endpoint = f"{SCANS_ENDPOINT}/{scan_id}"
-        try:
-            response = requests.get(scan_details_endpoint, headers=headers, cookies=cookies, verify=False)
-            if response.status_code == 200:
-                detailed_scan = response.json()
-                detailed_scans.append(detailed_scan)
-            else:
-                print(f"Failed to fetch details for scan {scan_name}: {response.status_code} - {response.text}")
-        except Exception as e:
-            print(f"Error fetching details for scan {scan_name}: {e}")
-    return detailed_scans
+    for scan_name in scan_names:
+        scan_details = fetch_scan_details(scan_name, cookies)
+        if scan_details:
+            detailed_scans.append(scan_details)
 
-# Step 6: Save detailed scans to a JSON file
-def save_detailed_scans(detailed_scans):
     try:
         with open("detailed_scans.json", "w") as file:
             json.dump(detailed_scans, file, indent=4)
@@ -79,29 +78,5 @@ def save_detailed_scans(detailed_scans):
     except Exception as e:
         print(f"Error saving detailed scans: {e}")
 
-# Step 7: Main function
-def main():
-    # Authenticate with the old server
-    cookies = authenticate()
-    if not cookies:
-        print("Authentication failed. Exiting...")
-        return
-
-    # Fetch all scans (basic information)
-    scans = fetch_all_scans(cookies)
-    if not scans:
-        print("No scans found or failed to fetch scans. Exiting...")
-        return
-
-    # Fetch detailed information for each scan
-    detailed_scans = fetch_scan_details(scans, cookies)
-    if not detailed_scans:
-        print("Failed to fetch detailed information for scans. Exiting...")
-        return
-
-    # Save detailed scans to a JSON file
-    save_detailed_scans(detailed_scans)
-
-# Run the script
 if __name__ == "__main__":
     main()
