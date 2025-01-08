@@ -99,6 +99,7 @@ def fetch_detailed_metadata(filtered_scans, cookies):
     print("Saved detailed and failed scans.")
 
 
+
 # Main workflow
 def main():
     cookies = authenticate()
