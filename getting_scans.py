@@ -36,17 +36,20 @@ def fetch_and_filter_scan_names(cookies):
     try:
         response = requests.get(SCAN_NAMES_ENDPOINT, headers=headers, cookies=cookies, verify=False)
         if response.status_code == 200:
-            # Print the raw response for debugging
-            print("API Response:")
-            print(response.json())  # This will show the structure of the response
-            
             # Parse response JSON
             all_scans = response.json()
 
             # Validate response structure
             if isinstance(all_scans, list):
                 # Filter only 'DataRetention' scans
-                filtered_scans = [scan for scan in all_scans if "DataRetention" in scan.get("name", "")]
+                filtered_scans = []
+                for scan in all_scans:
+                    if isinstance(scan, dict):  # Ensure each item is a dictionary
+                        if "DataRetention" in scan.get("name", ""):
+                            filtered_scans.append(scan)
+                    else:
+                        print(f"Skipping invalid scan entry: {scan}")
+
                 # Remove duplicates
                 unique_scans = list({scan["name"]: scan for scan in filtered_scans}.values())
                 with open("scans_DataRetention.json", "w") as file:
@@ -62,6 +65,7 @@ def fetch_and_filter_scan_names(cookies):
     except Exception as e:
         print(f"Error fetching scan names: {e}")
         return []
+
 
 
 # Step 2: Fetch detailed metadata
