@@ -69,13 +69,22 @@ def main():
         print(f"Error reading sample.json file: {e}")
         return
 
+    # Validate loaded data format
+    if not isinstance(scans_data, list):
+        print("Error: sample.json must contain a list of dictionaries.")
+        return
+
     # Create scans
     for scan_data in scans_data:
-        success = create_scan(scan_data, cookies)
-        if not success:
-            print(f"Skipping scan creation for {scan_data.get('name')} due to an error.")
+        if isinstance(scan_data, dict):  # Ensure the entry is a dictionary
+            success = create_scan(scan_data, cookies)
+            if not success:
+                print(f"Skipping scan creation for {scan_data.get('name')} due to an error.")
+        else:
+            print(f"Skipping invalid scan entry: {scan_data}")
 
     print("Scan creation process completed.")
+
 
 if __name__ == "__main__":
     main()
