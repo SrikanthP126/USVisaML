@@ -1,0 +1,21 @@
+{
+  "name": "PNC - Tier1 - ExampleScan - DataRetention",
+  "policy": "ExamplePolicy",
+  "dbType": "MsSql",
+  "apply-to": [
+    "/conf/dbServices/ExampleGroup/ExamplePolicy/ExampleConnection"
+  ],
+  "scheduling": {
+    "occurs": "recurring",
+    "recurring": {
+      "frequency": "monthly",
+      "monthly": {
+        "frequency": "day of week",
+        "day-of-week": "Monday",
+        "week-of-month": "First"
+      }
+    },
+    "starting-from": "2025-01-15",
+    "at-time": "02:00:00"
+  }
+}
