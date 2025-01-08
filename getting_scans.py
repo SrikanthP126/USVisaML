@@ -77,7 +77,7 @@ def fetch_detailed_metadata(filtered_scans, cookies):
 
     for scan in filtered_scans:
         try:
-            scan_name = scan["name"]
+            scan_name = scan["name"]  # Access scan name from the dictionary
             print(f"Fetching details for: {scan_name}")
             encoded_name = quote(scan_name)  # URL encode the scan name
             url = f"{SCAN_DETAILS_ENDPOINT}/{encoded_name}"
@@ -97,6 +97,7 @@ def fetch_detailed_metadata(filtered_scans, cookies):
     with open("failed_DataRetention_scans.json", "w") as file:
         json.dump(failed_scans, file, indent=4)
     print("Saved detailed and failed scans.")
+
 
 # Main workflow
 def main():
