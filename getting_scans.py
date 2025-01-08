@@ -36,21 +36,33 @@ def fetch_and_filter_scan_names(cookies):
     try:
         response = requests.get(SCAN_NAMES_ENDPOINT, headers=headers, cookies=cookies, verify=False)
         if response.status_code == 200:
+            # Print the raw response for debugging
+            print("API Response:")
+            print(response.json())  # This will show the structure of the response
+            
+            # Parse response JSON
             all_scans = response.json()
-            # Filter only 'DataRetention' scans
-            filtered_scans = [scan for scan in all_scans if "DataRetention" in scan["name"]]
-            # Remove duplicates
-            unique_scans = list({scan["name"]: scan for scan in filtered_scans}.values())
-            with open("scans_DataRetention.json", "w") as file:
-                json.dump(unique_scans, file, indent=4)
-            print(f"Saved {len(unique_scans)} filtered scans to scans_DataRetention.json.")
-            return unique_scans
+
+            # Validate response structure
+            if isinstance(all_scans, list):
+                # Filter only 'DataRetention' scans
+                filtered_scans = [scan for scan in all_scans if "DataRetention" in scan.get("name", "")]
+                # Remove duplicates
+                unique_scans = list({scan["name"]: scan for scan in filtered_scans}.values())
+                with open("scans_DataRetention.json", "w") as file:
+                    json.dump(unique_scans, file, indent=4)
+                print(f"Saved {len(unique_scans)} filtered scans to scans_DataRetention.json.")
+                return unique_scans
+            else:
+                print("Unexpected response format: Not a list.")
+                return []
         else:
             print(f"Failed to fetch scan names: {response.status_code}")
             return []
     except Exception as e:
         print(f"Error fetching scan names: {e}")
         return []
+
 
 # Step 2: Fetch detailed metadata
 def fetch_detailed_metadata(filtered_scans, cookies):
