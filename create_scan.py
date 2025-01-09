@@ -3,18 +3,14 @@ import json
 import base64
 import getpass
 
-# Step 1: Define server details
-NEW_SERVER_IP = "your_new_server_ip_or_domain"  # Replace with new server's IP or domain
-AUTH_ENDPOINT = f"https://{NEW_SERVER_IP}:8083/SecureSphere/api/v1/auth/session"
-CREATE_SCAN_ENDPOINT = f"https://{NEW_SERVER_IP}:8083/SecureSphere/api/v1/conf/assessment/scans"
 
-# Step 2: Authenticate with the new server
+
 def authenticate():
+    """Authenticate with the new server and return session cookies."""
     username = input("Enter your username for the new server: ")
     password = getpass.getpass("Enter your password for the new server (input will be hidden): ")
     credentials = f"{username}:{password}"
     encoded_credentials = base64.b64encode(credentials.encode("ascii")).decode("ascii")
-
     headers = {
         "Authorization": f"Basic {encoded_credentials}",
         "Content-Type": "application/json"
@@ -33,27 +29,37 @@ def authenticate():
         print(f"Error during authentication: {e}")
         return None
 
-# Step 3: Create scans using data from sample.json
 def create_scan(scan_data, cookies):
+    """Create a scan on the new server using the provided scan data."""
     headers = {
         "Content-Type": "application/json"
     }
 
+    # Use scanName for the URL endpoint
+    scan_name = scan_data.get("scanName").strip()
+    url = f"{CREATE_SCAN_ENDPOINT}/{scan_name}"
+
     try:
-        print(f"Creating scan: {scan_data.get('name')}...")
-        response = requests.post(CREATE_SCAN_ENDPOINT, headers=headers, cookies=cookies, json=scan_data, verify=False)
+        print(f"Creating scan: {scan_name}...")
+        response = requests.post(url, headers=headers, cookies=cookies, json=scan_data, verify=False)
         if response.status_code == 201:  # Assuming 201 is the success code for creation
-            print(f"Scan created successfully: {scan_data.get('name')}")
+            print(f"Scan created successfully: {scan_name}")
             return True
+        elif response.status_code == 400:
+            print(f"Failed to create scan {scan_name}: {response.status_code} - Bad request. Please check your data.")
+            return False
+        elif response.status_code == 409:  # Conflict, possibly duplicate scan name
+            print(f"Scan {scan_name} already exists: {response.status_code} - {response.text}")
+            return False
         else:
-            print(f"Failed to create scan {scan_data.get('name')}: {response.status_code} - {response.text}")
+            print(f"Failed to create scan {scan_name}: {response.status_code} - {response.text}")
             return False
     except Exception as e:
-        print(f"Error creating scan {scan_data.get('name')}: {e}")
+        print(f"Error creating scan {scan_name}: {e}")
         return False
 
-# Step 4: Main function
 def main():
+    """Main function to create scans using data from sample.json."""
     # Authenticate with the new server
     cookies = authenticate()
     if not cookies:
@@ -79,12 +85,11 @@ def main():
         if isinstance(scan_data, dict):  # Ensure the entry is a dictionary
             success = create_scan(scan_data, cookies)
             if not success:
-                print(f"Skipping scan creation for {scan_data.get('name')} due to an error.")
+                print(f"Skipping scan creation for {scan_data.get('scanName')} due to an error.")
         else:
             print(f"Skipping invalid scan entry: {scan_data}")
 
     print("Scan creation process completed.")
-
 
 if __name__ == "__main__":
     main()
